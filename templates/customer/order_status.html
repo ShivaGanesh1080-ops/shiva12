@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Order #{{ order.id }} — {{ shop.name }}</title>
+<link rel="stylesheet" href="/static/style.css">
+<style>
+.track-wrap{max-width:420px;margin:0 auto;padding:24px 16px 48px;}
+.t-header{background:linear-gradient(135deg,var(--ink),#3D2810);color:white;border-radius:var(--r);padding:22px;margin-bottom:20px;position:relative;overflow:hidden;}
+.t-header::before{content:'';position:absolute;right:-20px;top:-20px;width:120px;height:120px;border-radius:50%;background:rgba(255,107,0,.15);}
+.t-token{display:inline-block;background:var(--saffron);color:white;font-family:'Syne',sans-serif;font-weight:800;font-size:1rem;padding:4px 14px;border-radius:6px;margin-bottom:10px;}
+.t-header h2{font-size:1.25rem;font-weight:800;margin-bottom:4px;}
+.t-header p{color:#aaa;font-size:.82rem;}
+.status-card{background:white;border:2px solid var(--border);border-radius:var(--r);padding:20px;margin-bottom:16px;}
+.sc-title{font-family:'Syne',sans-serif;font-weight:700;font-size:.78rem;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:16px;}
+.step{display:flex;align-items:flex-start;gap:12px;padding:3px 0;}
+.step-col{display:flex;flex-direction:column;align-items:center;}
+.dot{width:26px;height:26px;border-radius:50%;background:var(--border);display:flex;align-items:center;justify-content:center;font-size:.72rem;color:white;transition:all .4s;flex-shrink:0;}
+.dot.done{background:var(--green);}
+.dot.active{background:var(--saffron);animation:dp 1.4s infinite;}
+@keyframes dp{0%,100%{box-shadow:0 0 0 0 rgba(255,107,0,.4);}50%{box-shadow:0 0 0 8px rgba(255,107,0,0);}}
+.line{width:2px;height:28px;background:var(--border);margin-top:2px;transition:background .4s;}
+.line.done{background:var(--green);}
+.step-info{padding-top:2px;}
+.step-name{font-weight:600;font-size:.9rem;}
+.step-desc{font-size:.77rem;color:var(--muted);margin-top:2px;}
+.order-detail{background:white;border:2px solid var(--border);border-radius:var(--r);padding:18px;}
+.od-row{display:flex;justify-content:space-between;padding:7px 0;font-size:.88rem;border-bottom:1px solid var(--border);}
+.od-row:last-child{border-bottom:none;}
+.od-lbl{color:var(--muted);font-size:.75rem;font-weight:600;text-transform:uppercase;}
+.refresh-note{text-align:center;font-size:.75rem;color:var(--muted);margin-top:12px;}
+
+/* ── Pending Payment banner ── */
+.pending-banner{background:#fff8e1;border:2px solid #f59e0b;border-radius:14px;padding:18px;margin-bottom:16px;text-align:center;}
+.pb-icon{font-size:2.5rem;margin-bottom:8px;}
+.pb-title{font-family:'Syne',sans-serif;font-weight:800;font-size:1rem;color:#92400e;margin-bottom:4px;}
+.pb-desc{font-size:.8rem;color:#78350f;line-height:1.5;}
+.pb-upi{font-family:'Syne',sans-serif;font-weight:800;font-size:1.1rem;color:#6d28d9;margin:8px 0;}
+.pb-amount{font-family:'Syne',sans-serif;font-weight:800;font-size:1.5rem;color:#92400e;}
+.pb-pulse{display:inline-block;width:10px;height:10px;border-radius:50%;background:#f59e0b;animation:pulse 1.2s infinite;margin-right:6px;}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.5;transform:scale(.8);}}
+
+/* ── Cancelled banner ── */
+.cancelled-banner{background:#fff0f0;border:2px solid #ef4444;border-radius:14px;padding:18px;margin-bottom:16px;text-align:center;}
+
+/* Completed overlay */
+.done-overlay{display:none;position:fixed;inset:0;background:rgba(26,18,8,.75);z-index:300;align-items:center;justify-content:center;}
+.done-overlay.show{display:flex;}
+.done-box{background:white;border-radius:20px;padding:36px 32px;text-align:center;max-width:320px;animation:popIn .4s ease;}
+@keyframes popIn{from{transform:scale(.8);opacity:0;}to{transform:scale(1);opacity:1;}}
+.done-icon{font-size:3.5rem;margin-bottom:12px;}
+.done-title{font-family:'Syne',sans-serif;font-weight:800;font-size:1.4rem;margin-bottom:6px;}
+.done-sub{color:var(--muted);font-size:.85rem;margin-bottom:20px;}
+.countdown{font-family:'Syne',sans-serif;font-weight:800;font-size:2.5rem;color:var(--saffron);}
+.countdown-lbl{font-size:.75rem;color:var(--muted);}
+</style>
+</head>
+<body>
+<nav class="navbar">
+  <a class="brand" href="/shop/{{ shop.slug }}">Shiva<span>@12</span></a>
+  <a href="/shop/{{ shop.slug }}" class="nav-a">← Menu</a>
+</nav>
+<div id="toast"></div>
+
+<div class="track-wrap">
+  <div class="t-header">
+    <div class="t-token">Token #{{ order.token_number }}</div>
+    <h2>{{ shop.name }}</h2>
+    <p>{{ order.customer_name }} &nbsp;·&nbsp; Order #{{ order.id }}</p>
+  </div>
+
+  <!-- Shown only for UPI pending orders -->
+  <div id="pending-banner" style="display:none">
+    <div class="pending-banner">
+      <div class="pb-icon">⏳</div>
+      <div class="pb-title"><span class="pb-pulse"></span>Waiting for Payment Confirmation</div>
+      <div class="pb-desc">
+        You selected UPI. Please pay now if you haven't already.<br>
+        The shop owner will verify and confirm your order.
+      </div>
+      <div style="margin:12px 0 4px;font-size:.72rem;color:#92400e;font-weight:600;text-transform:uppercase;letter-spacing:1px">Pay to UPI ID</div>
+      <div class="pb-upi">9390175871@fam</div>
+      <div style="font-size:.72rem;color:#92400e;margin-bottom:4px">Amount</div>
+      <div class="pb-amount">₹{{ order.total | int }}</div>
+    </div>
+  </div>
+
+  <!-- Shown for cancelled orders -->
+  <div id="cancelled-banner" style="display:none">
+    <div class="cancelled-banner">
+      <div style="font-size:2rem;margin-bottom:8px">❌</div>
+      <div style="font-family:'Syne',sans-serif;font-weight:800;color:#dc2626;margin-bottom:6px">Order Rejected</div>
+      <div style="font-size:.82rem;color:#7f1d1d;line-height:1.6;margin-bottom:14px">
+        The shop owner did not confirm your payment.<br>
+        This could be a mistake or a delay.
+      </div>
+      <div style="background:#fff7ed;border:1.5px solid #fb923c;border-radius:10px;padding:12px;text-align:left;font-size:.8rem;color:#7c2d12;line-height:1.7">
+        <strong>💡 What to do if you already paid:</strong><br>
+        1. Take a <strong>screenshot</strong> of your UPI transaction from GPay / PhonePe<br>
+        2. Show it to the <strong>shop owner at the counter</strong><br>
+        3. If unresolved, call: <strong style="color:#c2410c">📞 9390175871</strong><br>
+        4. You can also raise a dispute directly in your <strong>UPI app</strong> (GPay → Activity → Report an issue)
+      </div>
+      <a href="/shop/{{ shop.slug }}" style="display:block;margin-top:14px;text-align:center;color:var(--saffron);font-weight:700;font-size:.85rem;text-decoration:none">← Back to Menu</a>
+    </div>
+  </div>
+
+  <div class="status-card" id="status-card">
+    <div class="sc-title">📍 Live Order Status</div>
+    <div id="track"></div>
+  </div>
+
+  <div class="order-detail">
+    <div class="od-row"><span class="od-lbl">Items</span><span style="text-align:right;max-width:220px;font-size:.82rem">{{ order.items }}</span></div>
+    <div class="od-row">
+      <span class="od-lbl">Total</span>
+      <span style="color:var(--saffron);font-weight:700;font-family:'Syne',sans-serif">₹{{ order.total | int }}</span>
+    </div>
+    <div class="od-row">
+      <span class="od-lbl">Payment</span>
+      <span style="font-size:.82rem;font-weight:600">
+        {% if order.payment == 'UPI' %}📱 UPI{% else %}💵 Cash{% endif %}
+      </span>
+    </div>
+    <div class="od-row"><span class="od-lbl">Placed</span><span style="font-size:.8rem;color:var(--muted)">{{ order.created_at }}</span></div>
+  </div>
+  <div class="refresh-note" id="refresh-note">🔄 Auto-updating every 5 seconds…</div>
+</div>
+
+<!-- Completed popup -->
+<div class="done-overlay" id="done-overlay">
+  <div class="done-box">
+    <div class="done-icon">🎉</div>
+    <div class="done-title">Order Completed!</div>
+    <div class="done-sub">Thank you! Hope you enjoyed your order.</div>
+    <div class="countdown" id="countdown">3</div>
+    <div class="countdown-lbl">Returning to shop in…</div>
+  </div>
+</div>
+
+<script>
+const ORDER_ID  = {{ order.id }};
+const SHOP_SLUG = '{{ shop.slug }}';
+
+const steps = [
+  { key:'received',  label:'Order Received',   desc:'Shop received your order' },
+  { key:'preparing', label:'Preparing',         desc:'Your items are being prepared' },
+  { key:'ready',     label:'Ready for Pickup',  desc:'Please collect at counter! 🏃' },
+  { key:'completed', label:'Completed',         desc:'Enjoy your order! 😊' },
+];
+const order = ['received','preparing','ready','completed'];
+let completedShown = false;
+
+function render(status) {
+  const pendingBanner   = document.getElementById('pending-banner');
+  const cancelledBanner = document.getElementById('cancelled-banner');
+  const statusCard      = document.getElementById('status-card');
+
+  // Handle special statuses
+  if (status === 'pending_payment') {
+    pendingBanner.style.display   = '';
+    cancelledBanner.style.display = 'none';
+    statusCard.style.display      = 'none';
+    document.getElementById('refresh-note').textContent = '⏳ Waiting for owner to confirm payment…';
+    return;
+  }
+  if (status === 'cancelled') {
+    pendingBanner.style.display   = 'none';
+    cancelledBanner.style.display = '';
+    statusCard.style.display      = 'none';
+    document.getElementById('refresh-note').textContent = '❌ Order cancelled';
+    return;
+  }
+
+  // Normal flow
+  pendingBanner.style.display   = 'none';
+  cancelledBanner.style.display = 'none';
+  statusCard.style.display      = '';
+
+  const idx = order.indexOf(status);
+  document.getElementById('track').innerHTML = steps.map((s, i) => {
+    const done   = i < idx;
+    const active = i === idx;
+    const last   = i === steps.length - 1;
+    return `<div class="step">
+      <div class="step-col">
+        <div class="dot ${done?'done':active?'active':''}">${done?'✓':''}</div>
+        ${!last ? `<div class="line ${done?'done':''}"></div>` : ''}
+      </div>
+      <div class="step-info">
+        <div class="step-name" style="color:${active?'var(--saffron)':done?'var(--green)':'var(--muted)'}">${s.label}</div>
+        <div class="step-desc">${s.desc}</div>
+        ${active ? `<div style="font-size:.72rem;color:var(--saffron);font-weight:600;margin-top:3px">● In progress</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function startCompletedCountdown() {
+  if (completedShown) return;
+  completedShown = true;
+  document.getElementById('done-overlay').classList.add('show');
+  let secs = 3;
+  document.getElementById('countdown').textContent = secs;
+  const iv = setInterval(() => {
+    secs--;
+    document.getElementById('countdown').textContent = secs;
+    if (secs <= 0) { clearInterval(iv); window.location.href = `/shop/${SHOP_SLUG}`; }
+  }, 1000);
+}
+
+async function poll() {
+  try {
+    const res  = await fetch(`/api/order_status/${ORDER_ID}`);
+    const data = await res.json();
+    render(data.status);
+    if (data.status !== 'cancelled') {
+      const now = new Date().toLocaleTimeString();
+      if (data.status !== 'pending_payment') {
+        document.getElementById('refresh-note').textContent = `🔄 Last updated: ${now}`;
+      }
+    }
+    if (data.status === 'completed') {
+      startCompletedCountdown();
+    } else if (data.status !== 'cancelled') {
+      setTimeout(poll, 5000);
+    }
+  } catch(e) { setTimeout(poll, 8000); }
+}
+
+render('{{ order.status }}');
+if ('{{ order.status }}' === 'completed') {
+  startCompletedCountdown();
+} else if ('{{ order.status }}' !== 'cancelled') {
+  setTimeout(poll, 5000);
+}
+</script>
+</body>
+</html>

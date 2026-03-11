@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Kitchen — {{ shop_name }}</title>
+<link rel="stylesheet" href="/static/style.css">
+<style>
+body{background:#111;color:white;font-family:'DM Sans',sans-serif;}
+.k-nav{background:#000;padding:0 24px;height:58px;display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #222;}
+.k-brand{font-family:'Syne',sans-serif;font-weight:800;font-size:1.2rem;color:var(--saffron);}
+.k-brand span{color:white;}
+.k-wrap{max-width:1100px;margin:0 auto;padding:24px 20px;}
+
+.k-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px;}
+.k-header h1{font-size:1.4rem;font-weight:800;}
+.k-header p{color:#888;font-size:.82rem;}
+.live-k{display:flex;align-items:center;gap:7px;background:rgba(26,138,90,.2);color:#4ade80;border:1px solid rgba(26,138,90,.4);padding:6px 14px;border-radius:20px;font-size:.8rem;font-weight:600;}
+.live-dot-k{width:8px;height:8px;border-radius:50%;background:#4ade80;animation:kp 1.5s infinite;}
+@keyframes kp{0%,100%{box-shadow:0 0 0 0 rgba(74,222,128,.5);}50%{box-shadow:0 0 0 8px rgba(74,222,128,0);}}
+
+.k-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:28px;}
+.ks{background:#1a1a1a;border:1px solid #333;border-radius:12px;padding:16px;}
+.ks .val{font-family:'Syne',sans-serif;font-weight:800;font-size:1.8rem;line-height:1;margin-bottom:4px;}
+.ks .lbl{font-size:.75rem;color:#888;}
+.ks .ico{font-size:1.4rem;margin-bottom:8px;}
+
+.orders-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;}
+.k-card{background:#1a1a1a;border:2px solid #333;border-radius:14px;padding:18px;transition:all .2s;position:relative;overflow:hidden;}
+.k-card.received{border-color:#2563eb;box-shadow:0 0 0 1px #2563eb22;}
+.k-card.preparing{border-color:var(--yellow);box-shadow:0 0 0 1px rgba(245,158,11,.2);}
+.k-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+.k-card.received::before{background:var(--blue);}
+.k-card.preparing::before{background:var(--yellow);}
+
+.k-card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.k-id{font-family:'Syne',sans-serif;font-weight:800;font-size:1rem;}
+.k-token{font-size:.72rem;color:#888;margin-top:2px;}
+.k-time{font-size:.75rem;color:#888;}
+.k-items{margin-bottom:14px;}
+.k-item-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #2a2a2a;}
+.k-item-row:last-child{border-bottom:none;}
+.k-item-name{font-weight:600;font-size:.9rem;}
+.k-item-qty{background:#FF6B00;color:white;font-family:'Syne',sans-serif;font-weight:800;font-size:.8rem;padding:2px 8px;border-radius:5px;flex-shrink:0;}
+.k-cust{font-size:.8rem;color:#888;margin-bottom:14px;}
+.k-actions{display:flex;gap:8px;}
+.k-btn{flex:1;padding:10px;border-radius:10px;border:none;font-family:'DM Sans',sans-serif;font-weight:700;font-size:.82rem;cursor:pointer;transition:all .2s;}
+.k-btn-start{background:var(--yellow);color:#1a1a1a;}
+.k-btn-start:hover{background:#fbbf24;}
+.k-btn-ready{background:var(--green);color:white;}
+.k-btn-ready:hover{background:#16a34a;}
+.k-btn-done{background:#374151;color:#9ca3af;cursor:not-allowed;}
+
+.section-label{font-family:'Syne',sans-serif;font-size:.72rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#555;margin:0 0 12px;}
+.empty-k{text-align:center;padding:60px 20px;color:#555;}
+.empty-k .ei{font-size:3rem;margin-bottom:12px;}
+
+/* New order flash */
+@keyframes newFlash{0%{box-shadow:0 0 0 0 rgba(255,107,0,.8);}50%{box-shadow:0 0 20px 10px rgba(255,107,0,.3);}100%{box-shadow:0 0 0 0 rgba(255,107,0,0);}}
+.new-flash{animation:newFlash 1s ease 2;}
+
+/* Sound indicator */
+.new-order-banner{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:var(--saffron);color:white;padding:10px 24px;border-radius:10px;font-family:'Syne',sans-serif;font-weight:700;font-size:.9rem;z-index:999;opacity:0;pointer-events:none;transition:opacity .3s;}
+.new-order-banner.show{opacity:1;}
+</style>
+</head>
+<body>
+<div class="new-order-banner" id="new-banner">🆕 New Order!</div>
+<nav class="k-nav">
+  <div class="k-brand">Shiva<span>@12</span> <span style="color:#555;font-weight:400;font-size:.85rem;margin-left:8px">Kitchen</span></div>
+  <div class="flex gap-12">
+    <span style="color:#888;font-size:.82rem">{{ shop_name }}</span>
+    <a href="/kitchen/logout" style="color:#888;text-decoration:none;font-size:.82rem;border:1px solid #333;padding:5px 12px;border-radius:7px;">Logout</a>
+  </div>
+</nav>
+
+<div class="k-wrap">
+  <div class="k-header">
+    <div>
+      <h1>👨‍🍳 Kitchen Dashboard</h1>
+      <p>{{ shop_name }} · Orders update in real-time</p>
+    </div>
+    <div class="live-k"><div class="live-dot-k"></div> Live</div>
+  </div>
+
+  <div class="k-stats">
+    <div class="ks"><div class="ico">🆕</div><div class="val" id="cnt-new" style="color:var(--blue)">0</div><div class="lbl">New Orders</div></div>
+    <div class="ks"><div class="ico">🍳</div><div class="val" id="cnt-prep" style="color:var(--yellow)">0</div><div class="lbl">Preparing</div></div>
+    <div class="ks"><div class="ico">📋</div><div class="val" id="cnt-total" style="color:var(--green)">0</div><div class="lbl">Total Active</div></div>
+  </div>
+
+  <div id="orders-container">
+    <div class="empty-k"><div class="ei">👨‍🍳</div><p>Loading orders…</p></div>
+  </div>
+</div>
+
+<script>
+let knownIds = new Set({{ orders | map(attribute='id') | list | tojson }});
+
+function parseItems(str) {
+  // "Chai x2, Samosa x1" → [{name,qty}]
+  return str.split(',').map(s=>{
+    const m = s.trim().match(/^(.+)\s+x(\d+)$/);
+    if (m) return {name:m[1].trim(), qty:m[2]};
+    return {name:s.trim(), qty:'1'};
+  });
+}
+
+function buildCard(o) {
+  const isReceived = o.status === 'received';
+  const isPreparing = o.status === 'preparing';
+  const items = parseItems(o.items);
+  const itemsHtml = items.map(i=>`
+    <div class="k-item-row">
+      <span class="k-item-qty">×${i.qty}</span>
+      <span class="k-item-name">${i.name}</span>
+    </div>`).join('');
+
+  let actions = '';
+  if (isReceived) {
+    actions = `<button class="k-btn k-btn-start" onclick="updateOrder(${o.id},'preparing')">🍳 Start Preparing</button>`;
+  } else if (isPreparing) {
+    actions = `<button class="k-btn k-btn-ready" onclick="updateOrder(${o.id},'ready')">✅ Mark Ready</button>`;
+  } else {
+    actions = `<button class="k-btn k-btn-done" disabled>✅ Done</button>`;
+  }
+
+  const elapsed = timeSince(o.created_at);
+  return `<div class="k-card ${o.status}" id="kc-${o.id}">
+    <div class="k-card-top">
+      <div>
+        <div class="k-id">🎫 Order #${o.id}</div>
+        <div class="k-token">Token #${o.token_number}</div>
+      </div>
+      <span class="badge badge-${o.status}">${o.status}</span>
+    </div>
+    <div class="k-items">${itemsHtml}</div>
+    <div class="k-cust">👤 ${o.customer_name} &nbsp;·&nbsp; ${elapsed}</div>
+    <div class="k-actions">${actions}</div>
+  </div>`;
+}
+
+function timeSince(dtStr) {
+  const diff = Math.floor((Date.now() - new Date(dtStr)) / 60000);
+  if (diff < 1) return 'Just now';
+  if (diff < 60) return `${diff} min ago`;
+  return `${Math.floor(diff/60)}h ago`;
+}
+
+function render(orders) {
+  const cnt = document.getElementById('orders-container');
+  const newOrds  = orders.filter(o=>o.status==='received');
+  const prepOrds = orders.filter(o=>o.status==='preparing');
+  document.getElementById('cnt-new').textContent   = newOrds.length;
+  document.getElementById('cnt-prep').textContent  = prepOrds.length;
+  document.getElementById('cnt-total').textContent = orders.length;
+
+  if (!orders.length) {
+    cnt.innerHTML = `<div class="empty-k"><div class="ei">✅</div><p>All clear! No active orders.</p></div>`;
+    return;
+  }
+  let html = '';
+  if (newOrds.length) {
+    html += `<div class="section-label mb-12">🆕 New Orders (${newOrds.length})</div>
+      <div class="orders-grid mb-24">${newOrds.map(buildCard).join('')}</div>`;
+  }
+  if (prepOrds.length) {
+    html += `<div class="section-label mb-12">🍳 Preparing (${prepOrds.length})</div>
+      <div class="orders-grid">${prepOrds.map(buildCard).join('')}</div>`;
+  }
+  cnt.innerHTML = html;
+}
+
+async function updateOrder(id, status) {
+  const card = document.getElementById(`kc-${id}`);
+  if (card) { card.style.opacity = '.5'; card.style.pointerEvents = 'none'; }
+  try {
+    await fetch('/kitchen/update', {method:'POST',headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({order_id:id, status})});
+    await fetchOrders();
+  } catch(e) {
+    if (card) { card.style.opacity='1'; card.style.pointerEvents=''; }
+  }
+}
+
+async function fetchOrders() {
+  try {
+    const res  = await fetch('/api/kitchen_poll');
+    const data = await res.json();
+    // check for new orders
+    const incoming = new Set(data.orders.map(o=>o.id));
+    const hasNew = [...incoming].some(id=>!knownIds.has(id));
+    if (hasNew) {
+      knownIds = incoming;
+      const b = document.getElementById('new-banner');
+      b.classList.add('show');
+      setTimeout(()=>b.classList.remove('show'), 2500);
+    } else {
+      knownIds = incoming;
+    }
+    render(data.orders);
+  } catch(e) {}
+}
+
+// Initial render
+render({{ orders | tojson }});
+
+// Poll every 6 seconds
+setInterval(fetchOrders, 6000);
+</script>
+</body>
+</html>

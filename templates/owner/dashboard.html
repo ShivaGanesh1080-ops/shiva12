@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Owner — {{ shop.name }}</title>
+<link rel="stylesheet" href="/static/style.css">
+<style>
+.item-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;}
+.item-card{background:white;border:2px solid var(--border);border-radius:var(--r);overflow:hidden;transition:all .2s;}
+.item-card:hover{border-color:var(--saffron-lt);box-shadow:var(--shadow);}
+.item-card-img{width:100%;height:140px;object-fit:cover;background:var(--warm);display:flex;align-items:center;justify-content:center;font-size:3rem;}
+.item-card-img img{width:100%;height:140px;object-fit:cover;}
+.item-card-body{padding:14px;}
+.ic-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px;}
+.ic-name{font-weight:700;font-size:.95rem;}
+.ic-cat{font-size:.7rem;background:var(--warm);padding:2px 8px;border-radius:5px;display:inline-block;margin-top:3px;}
+.ic-price{font-family:'Syne',sans-serif;font-weight:800;font-size:1.1rem;color:var(--saffron);}
+.ic-desc{font-size:.78rem;color:var(--muted);margin-bottom:10px;}
+.ic-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+
+/* Image upload box */
+.img-upload-box{width:100%;height:140px;border:2px dashed var(--border);border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;overflow:hidden;background:var(--warm);}
+.img-upload-box:hover{border-color:var(--saffron);background:var(--saffron-pale);}
+#add-upload-placeholder,#edit-upload-placeholder{text-align:center;pointer-events:none;}
+
+.filter-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;}
+.fbtn{padding:5px 14px;border-radius:20px;font-size:.8rem;font-weight:500;border:2px solid var(--border);cursor:pointer;background:white;transition:all .2s;font-family:'DM Sans',sans-serif;}
+.fbtn.active{background:var(--ink);border-color:var(--ink);color:white;}
+</style>
+</head>
+<body>
+
+<nav class="navbar">
+  <a class="brand" href="/owner">Shiva<span>@12</span></a>
+  <div class="nav-links">
+    <span style="color:#aaa;font-size:.82rem;margin-right:8px">{{ session.owner_name }}</span>
+    <a href="/owner/logout" class="nav-a">Logout</a>
+  </div>
+</nav>
+<div class="subnav">
+  <a href="#orders"   class="subnav-a active" onclick="showTab('orders',this)">📋 Orders</a>
+  <a href="#items"    class="subnav-a" onclick="showTab('items',this)">🍽️ Menu Items</a>
+  <a href="#settings" class="subnav-a" onclick="showTab('settings',this)">⚙️ Settings</a>
+  <a href="/shop/{{ shop.slug }}" class="subnav-a" target="_blank">🔗 View Shop</a>
+  <a href="/kitchen/login" class="subnav-a" target="_blank">👨‍🍳 Kitchen</a>
+</div>
+
+<div id="toast"></div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat,msg in messages %}
+    <script>window.addEventListener('DOMContentLoaded',()=>toast('{{ msg }}'));</script>
+  {% endfor %}
+{% endwith %}
+
+<div class="wrap">
+
+<!-- ── ORDERS TAB ── -->
+<div id="tab-orders">
+  <div class="flex-b mb-20 mt-4">
+    <div class="page-hdr" style="margin-bottom:0"><h1>{{ shop.name }}</h1><p>Today's dashboard</p></div>
+    <div class="live-badge"><div class="live-dot"></div> Live</div>
+  </div>
+
+  <div class="grid-4 mb-24">
+    <div class="stat dark"><div class="ico">📦</div><div class="val">{{ total_orders }}</div><div class="lbl">Today's Orders</div></div>
+    <div class="stat"><div class="ico">⏳</div><div class="val" style="color:var(--yellow)">{{ pending }}</div><div class="lbl">Pending</div></div>
+    {% if upi_pending > 0 %}
+    <div class="stat" style="border:2px solid #f59e0b;background:#fff8e1"><div class="ico">⚠️</div><div class="val" style="color:#92400e">{{ upi_pending }}</div><div class="lbl" style="color:#92400e">Verify UPI</div></div>
+    {% else %}
+    <div class="stat"><div class="ico">✅</div><div class="val" style="color:var(--green)">{{ done }}</div><div class="lbl">Completed</div></div>
+    {% endif %}
+    <div class="stat"><div class="ico">💰</div><div class="val" style="color:var(--saffron)">₹{{ revenue | int }}</div><div class="lbl">Revenue</div></div>
+  </div>
+
+  <div class="flex-b mb-12">
+    <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:.95rem">📋 Today's Orders</div>
+    <div class="filter-bar" style="margin-bottom:0">
+      <button class="fbtn active" onclick="filterOrders(this,'all')">All</button>
+      <button class="fbtn" onclick="filterOrders(this,'received')">New</button>
+      <button class="fbtn" onclick="filterOrders(this,'preparing')">Preparing</button>
+      <button class="fbtn" onclick="filterOrders(this,'ready')">Ready</button>
+      <button class="fbtn" onclick="filterOrders(this,'completed')">Done</button>
+    </div>
+  </div>
+
+  <div id="orders-list">
+    {% if orders %}
+      {% for o in orders %}
+      <div class="order-card" data-status="{{ o.status }}" id="oc-{{ o.id }}">
+        {% if o.status == 'pending_payment' %}
+        <!-- UPI order waiting for owner to verify payment -->
+        <div style="background:#fff8e1;border:2px solid #f59e0b;border-radius:12px;padding:14px;margin-bottom:0">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+            <div>
+              <div class="oc-id">🎫 Order #{{ o.id }} <span style="font-size:.72rem;color:var(--muted);font-weight:400">Token #{{ o.token_number }}</span></div>
+              <div class="oc-time">⏱ {{ o.created_at }}</div>
+            </div>
+            <span style="background:#fff8e1;color:#92400e;border:1.5px solid #f59e0b;font-size:.72rem;font-weight:800;padding:3px 10px;border-radius:20px">⏳ UPI Pending</span>
+          </div>
+          <div class="chip-row">
+            {% for part in o.items.split(',') %}<span class="chip">{{ part.strip() }}</span>{% endfor %}
+          </div>
+          <div style="background:white;border-radius:8px;padding:10px 12px;margin:8px 0;font-size:.8rem;color:#92400e;border:1px solid #f59e0b44">
+            📱 Customer claims to have paid <strong>₹{{ o.total|int }}</strong> via UPI.<br>
+            Check your <strong>GPay / PhonePe</strong> for a payment from <strong>{{ o.customer_name }}</strong>.<br>
+            If confirmed, tap <strong>"✅ Mark as Paid"</strong> to send order to kitchen.
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div class="oc-price">₹{{ o.total|int }}</div>
+              <div class="oc-cust">👤 {{ o.customer_name }}{% if o.phone %} · {{ o.phone }}{% endif %}</div>
+            </div>
+            <div class="flex gap-6">
+              <button class="btn btn-sm btn-s" onclick="markPaid({{ o.id }})">✅ Mark as Paid</button>
+              <button class="btn btn-sm btn-r" onclick="ownerAdvance({{ o.id }},'cancelled')" style="background:#fee2e2;color:#dc2626;border:none">❌ Reject</button>
+            </div>
+          </div>
+        </div>
+        {% else %}
+        <div class="oc-top">
+          <div>
+            <div class="oc-id">🎫 Order #{{ o.id }} <span style="font-size:.72rem;color:var(--muted);font-weight:400">Token #{{ o.token_number }}</span></div>
+            <div class="oc-time">⏱ {{ o.created_at }}</div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
+            <span class="badge badge-{{ o.status }}">{{ o.status }}</span>
+            {% if o.payment == 'UPI' %}
+              <span style="background:#e6f7ef;color:#1a8a5a;font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:10px">✅ UPI Paid</span>
+            {% else %}
+              <span style="background:#fff0e5;color:#FF6B00;font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:10px">💵 COD</span>
+            {% endif %}
+          </div>
+        </div>
+        <div class="chip-row">
+          {% for part in o.items.split(',') %}<span class="chip">{{ part.strip() }}</span>{% endfor %}
+        </div>
+        <div class="oc-bot">
+          <div><div class="oc-price">₹{{ o.total|int }}</div>
+            <div class="oc-cust">👤 {{ o.customer_name }}{% if o.phone %} · {{ o.phone }}{% endif %}</div>
+          </div>
+          <div class="flex gap-6">
+            {% if o.status == 'received' %}
+              <button class="btn btn-sm btn-p" onclick="ownerAdvance({{ o.id }},'preparing')">Start →</button>
+            {% elif o.status == 'preparing' %}
+              <button class="btn btn-sm btn-s" onclick="ownerAdvance({{ o.id }},'ready')">Ready ✓</button>
+            {% elif o.status == 'ready' %}
+              <button class="btn btn-sm btn-s" onclick="ownerAdvance({{ o.id }},'completed')">Complete ✅</button>
+            {% else %}
+              <span class="btn btn-sm btn-o" style="opacity:.5;cursor:default">Done</span>
+            {% endif %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-state"><div class="ei">📋</div><p>No orders yet today.</p></div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ── ITEMS TAB ── -->
+<div id="tab-items" style="display:none">
+  <div class="flex-b mb-20 mt-4">
+    <div class="page-hdr" style="margin-bottom:0"><h1>🍽️ Menu Items</h1><p>Add, edit, remove your items</p></div>
+    <button class="btn btn-p" onclick="openModal('add-item-modal')">+ Add Item</button>
+  </div>
+
+  <div class="item-grid" id="item-grid">
+    {% if items %}
+      {% for item in items %}
+      <div class="item-card" id="ic-{{ item.id }}">
+        <!-- Item image or emoji fallback -->
+        <div class="item-card-img">
+          {% if item.image %}
+            <img src="/static/uploads/{{ item.image }}" alt="{{ item.name }}">
+          {% else %}
+            {% if item.category == 'Drinks' %}☕
+            {% elif item.category == 'Snacks' %}🥪
+            {% elif item.category == 'Meals' %}🍱
+            {% elif item.category == 'Sweets' %}🍮
+            {% else %}🍽️{% endif %}
+          {% endif %}
+        </div>
+        <div class="item-card-body">
+          <div class="ic-top">
+            <div>
+              <div class="ic-name">{{ item.name }}</div>
+              <span class="ic-cat">{{ item.category }}</span>
+            </div>
+            <div class="ic-price">₹{{ item.price | int }}</div>
+          </div>
+          {% if item.description %}<div class="ic-desc">{{ item.description }}</div>{% endif %}
+          <div class="ic-actions">
+            <button class="tog {{ 'on' if item.is_available else 'off' }}"
+              id="tog-{{ item.id }}" onclick="toggleItem({{ item.id }})"></button>
+            <span id="tog-lbl-{{ item.id }}" style="font-size:.78rem;color:var(--muted)">
+              {{ 'Available' if item.is_available else 'Unavailable' }}
+            </span>
+            <button class="btn btn-sm btn-o"
+              onclick="openEditItem({{ item.id }},'{{ item.name | replace("'","") }}','{{ item.description | replace("'","") }}',{{ item.price }},'{{ item.category }}','{{ item.image or "" }}')">✏️ Edit</button>
+            <form method="POST" action="/owner/item/delete/{{ item.id }}"
+              onsubmit="return confirm('Delete {{ item.name }}?')" style="display:inline">
+              <button type="submit" class="btn btn-sm btn-r">🗑</button>
+            </form>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-state" style="grid-column:1/-1"><div class="ei">🍽️</div><p>No items yet. Add your first item!</p></div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ── SETTINGS TAB ── -->
+<div id="tab-settings" style="display:none">
+  <div class="page-hdr mt-4"><h1>⚙️ Shop Settings</h1><p>Update your shop details</p></div>
+  <div class="card" style="max-width:520px">
+    <div class="card-title">Shop Info</div>
+    <form method="POST" action="/owner/shop/update">
+      <div class="fgroup"><label class="flabel">Shop Name</label>
+        <input class="finput" name="name" value="{{ shop.name }}" required></div>
+      <div class="fgroup"><label class="flabel">Description</label>
+        <input class="finput" name="description" value="{{ shop.description }}"></div>
+      <div class="fgroup"><label class="flabel">Kitchen PIN (for kitchen staff)</label>
+        <input class="finput" name="kitchen_pin" value="{{ shop.kitchen_pin }}" maxlength="8" placeholder="e.g. 5678"></div>
+      <button type="submit" class="btn btn-p mt-8">Save Settings</button>
+    </form>
+    <hr class="divider">
+    <div style="font-size:.82rem;color:var(--muted)">
+      <p><strong>Shop URL:</strong> http://127.0.0.1:5000/shop/{{ shop.slug }}</p>
+      <p class="mt-8"><strong>Kitchen URL:</strong> http://127.0.0.1:5000/kitchen/login</p>
+    </div>
+  </div>
+</div>
+
+</div><!-- /wrap -->
+
+<!-- ── ADD ITEM MODAL ── -->
+<div class="modal-overlay" id="add-item-modal" onclick="closeModalOvl(event,'add-item-modal')">
+  <div class="modal">
+    <div class="modal-title">➕ Add Menu Item <button class="modal-close" onclick="closeModal('add-item-modal')">✕</button></div>
+    <form method="POST" action="/owner/item/add" enctype="multipart/form-data">
+      <div class="frow">
+        <div class="fgroup"><label class="flabel">Item Name *</label>
+          <input class="finput" name="name" placeholder="e.g. Masala Chai" required></div>
+        <div class="fgroup"><label class="flabel">Price (₹) *</label>
+          <input class="finput" name="price" type="number" step="0.5" placeholder="10" required></div>
+      </div>
+      <div class="frow">
+        <div class="fgroup"><label class="flabel">Category</label>
+          <select class="fselect" name="category">
+            <option>Drinks</option><option>Snacks</option><option>Meals</option><option>Sweets</option><option>General</option>
+          </select></div>
+        <div class="fgroup"><label class="flabel">Description</label>
+          <input class="finput" name="description" placeholder="Short description"></div>
+      </div>
+
+      <!-- Image upload with preview -->
+      <div class="fgroup">
+        <label class="flabel">Item Photo (optional)</label>
+        <div class="img-upload-box" id="add-upload-box" onclick="document.getElementById('add-img-input').click()">
+          <img id="add-img-preview" src="" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:8px">
+          <div id="add-upload-placeholder">
+            <div style="font-size:2rem;margin-bottom:6px">📷</div>
+            <div style="font-size:.82rem;color:var(--muted)">Click to upload photo</div>
+            <div style="font-size:.72rem;color:var(--muted);margin-top:2px">JPG, PNG, WEBP · Max 5MB</div>
+          </div>
+        </div>
+        <input type="file" id="add-img-input" name="image" accept="image/*"
+               style="display:none" onchange="previewImg(this,'add-img-preview','add-upload-placeholder')">
+      </div>
+
+      <button type="submit" class="btn btn-p btn-full">Add Item</button>
+    </form>
+  </div>
+</div>
+
+<!-- ── EDIT ITEM MODAL ── -->
+<div class="modal-overlay" id="edit-item-modal" onclick="closeModalOvl(event,'edit-item-modal')">
+  <div class="modal">
+    <div class="modal-title">✏️ Edit Item <button class="modal-close" onclick="closeModal('edit-item-modal')">✕</button></div>
+    <form id="edit-item-form" method="POST" enctype="multipart/form-data">
+      <div class="frow">
+        <div class="fgroup"><label class="flabel">Item Name *</label>
+          <input class="finput" id="ei-name" name="name" required></div>
+        <div class="fgroup"><label class="flabel">Price (₹) *</label>
+          <input class="finput" id="ei-price" name="price" type="number" step="0.5" required></div>
+      </div>
+      <div class="frow">
+        <div class="fgroup"><label class="flabel">Category</label>
+          <select class="fselect" id="ei-cat" name="category">
+            <option>Drinks</option><option>Snacks</option><option>Meals</option><option>Sweets</option><option>General</option>
+          </select></div>
+        <div class="fgroup"><label class="flabel">Description</label>
+          <input class="finput" id="ei-desc" name="description"></div>
+      </div>
+
+      <!-- Image upload with current preview -->
+      <div class="fgroup">
+        <label class="flabel">Item Photo (leave blank to keep existing)</label>
+        <div class="img-upload-box" id="edit-upload-box" onclick="document.getElementById('edit-img-input').click()">
+          <img id="edit-img-preview" src="" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:8px">
+          <div id="edit-upload-placeholder">
+            <div style="font-size:2rem;margin-bottom:6px">📷</div>
+            <div style="font-size:.82rem;color:var(--muted)">Click to change photo</div>
+          </div>
+        </div>
+        <input type="file" id="edit-img-input" name="image" accept="image/*"
+               style="display:none" onchange="previewImg(this,'edit-img-preview','edit-upload-placeholder')">
+      </div>
+
+      <button type="submit" class="btn btn-p btn-full">Save Changes</button>
+    </form>
+  </div>
+</div>
+
+<script>
+// Tabs
+function showTab(tab, el) {
+  ['orders','items','settings'].forEach(t=>{
+    document.getElementById(`tab-${t}`).style.display = t===tab ? '' : 'none';
+  });
+  document.querySelectorAll('.subnav-a').forEach(a=>a.classList.remove('active'));
+  if(el) el.classList.add('active');
+}
+// Check hash on load
+window.addEventListener('DOMContentLoaded',()=>{
+  if(location.hash==='#items') showTab('items', document.querySelectorAll('.subnav-a')[1]);
+  if(location.hash==='#settings') showTab('settings', document.querySelectorAll('.subnav-a')[2]);
+});
+
+// Modals
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function closeModalOvl(e,id) { if(e.target===document.getElementById(id)) closeModal(id); }
+
+function openEditItem(id, name, desc, price, cat, img) {
+  document.getElementById('edit-item-form').action = `/owner/item/edit/${id}`;
+  document.getElementById('ei-name').value  = name;
+  document.getElementById('ei-desc').value  = desc;
+  document.getElementById('ei-price').value = price;
+  document.getElementById('ei-cat').value   = cat;
+  // show existing image in edit preview
+  const prev = document.getElementById('edit-img-preview');
+  const ph   = document.getElementById('edit-upload-placeholder');
+  if (img) {
+    prev.src = `/static/uploads/${img}`;
+    prev.style.display = '';
+    ph.style.display   = 'none';
+  } else {
+    prev.style.display = 'none';
+    ph.style.display   = '';
+  }
+  openModal('edit-item-modal');
+}
+
+function previewImg(input, previewId, placeholderId) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = document.getElementById(previewId);
+    const ph  = document.getElementById(placeholderId);
+    img.src = e.target.result;
+    img.style.display = '';
+    ph.style.display  = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+// Toggle item availability
+async function toggleItem(id) {
+  const res  = await fetch(`/owner/item/toggle/${id}`, {method:'POST'});
+  const data = await res.json();
+  if (data.success) {
+    const btn = document.getElementById(`tog-${id}`);
+    const lbl = document.getElementById(`tog-lbl-${id}`);
+    btn.className = `tog ${data.is_available ? 'on' : 'off'}`;
+    lbl.textContent = data.is_available ? 'Available' : 'Unavailable';
+    toast(data.is_available ? '✅ Item is now available' : '⛔ Item hidden from menu');
+  }
+}
+
+// Order filter
+function filterOrders(el, status) {
+  document.querySelectorAll('.filter-bar .fbtn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.order-card').forEach(c=>{
+    c.style.display = (status==='all' || c.dataset.status===status) ? '' : 'none';
+  });
+}
+
+// Advance order
+async function markPaid(id) {
+  if (!confirm('Confirm you received the UPI payment?')) return;
+  const res  = await fetch('/owner/order/update', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({order_id: id, status: 'confirm_payment'})
+  });
+  const data = await res.json();
+  if (data.success) { location.reload(); }
+  else { alert('Error marking order as paid'); }
+}
+
+async function ownerAdvance(id, status) {
+  await fetch('/owner/order/update', {method:'POST',headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({order_id:id, status})});
+  toast(`Order #${id} → ${status}`);
+  setTimeout(()=>location.reload(), 800);
+}
+
+function toast(msg) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2500);
+}
+
+// Auto refresh orders tab every 30s
+setInterval(()=>{ if(!document.getElementById('tab-orders').style.display || document.getElementById('tab-orders').style.display!=='none') location.reload(); }, 30000);
+</script>
+</body>
+</html>

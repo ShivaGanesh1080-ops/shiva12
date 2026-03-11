@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Owner Login — Shiva@12</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="login-page">
+  <div class="login-card">
+    <div class="login-logo">Shiva<span>@12</span></div>
+    <div class="login-sub">Shop Owner Portal</div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat,msg in messages %}
+        <div class="alert alert-{{ 'success' if cat=='success' else 'error' }}">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    <p style="font-family:'Syne',sans-serif;font-weight:700;font-size:1.05rem;margin-bottom:18px;">🔐 Login</p>
+    <form method="POST">
+      <div class="fgroup">
+        <label class="flabel">Username</label>
+        <input class="finput" name="username" placeholder="Your username" required autofocus>
+      </div>
+      <div class="fgroup">
+        <label class="flabel">Password</label>
+        <input class="finput" type="password" name="password" placeholder="Your password" required>
+      </div>
+      <button type="submit" class="btn btn-p btn-full mt-8">Login →</button>
+    </form>
+    <div style="text-align:center;margin-top:16px;display:flex;gap:12px;justify-content:center">
+      <a href="/kitchen/login" style="color:var(--muted);font-size:.8rem;text-decoration:none">👨‍🍳 Kitchen →</a>
+      <a href="/admin/login"   style="color:var(--muted);font-size:.8rem;text-decoration:none">⚙️ Admin →</a>
+    </div>
+  </div>
+</div>
+</body>
+</html>

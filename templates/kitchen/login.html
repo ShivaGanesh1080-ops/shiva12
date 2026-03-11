@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Kitchen Login — Shiva@12</title>
+<link rel="stylesheet" href="/static/style.css">
+<style>
+body{background:linear-gradient(135deg,#1a1208,#3d2810);}
+.pin-card{background:white;border-radius:20px;padding:40px 36px;width:100%;max-width:340px;box-shadow:var(--shadow-lg);}
+.pin-logo{font-family:'Syne',sans-serif;font-weight:800;font-size:1.8rem;color:var(--saffron);text-align:center;margin-bottom:4px;}
+.pin-logo span{color:var(--ink);}
+.pin-sub{text-align:center;color:var(--muted);font-size:.85rem;margin-bottom:28px;}
+.pin-icon{text-align:center;font-size:3rem;margin-bottom:16px;}
+.pin-input{width:100%;text-align:center;font-size:2rem;font-family:'Syne',sans-serif;font-weight:800;letter-spacing:.5rem;padding:14px;border:3px solid var(--border);border-radius:12px;outline:none;transition:border-color .2s;}
+.pin-input:focus{border-color:var(--saffron);}
+</style>
+</head>
+<body>
+<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px;">
+  <div class="pin-card">
+    <div class="pin-logo">Shiva<span>@12</span></div>
+    <div class="pin-sub">Kitchen Staff Portal</div>
+    <div class="pin-icon">👨‍🍳</div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat,msg in messages %}
+        <div class="alert alert-{{ 'success' if cat=='success' else 'error' }}">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    <form method="POST">
+      <div class="fgroup">
+        <label class="flabel">Enter Kitchen PIN</label>
+        <input class="pin-input" type="password" name="pin" placeholder="••••" maxlength="8" required autofocus>
+      </div>
+      <button type="submit" class="btn btn-p btn-full mt-8">Enter Kitchen →</button>
+    </form>
+    <div style="text-align:center;margin-top:16px">
+      <a href="/owner/login" style="color:var(--muted);font-size:.8rem;text-decoration:none">Owner login →</a>
+    </div>
+  </div>
+</div>
+</body>
+</html>

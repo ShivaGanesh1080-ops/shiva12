@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Admin Dashboard — Shiva@12</title>
+<link rel="stylesheet" href="/static/style.css">
+<style>
+.shop-card{background:white;border:2px solid var(--border);border-radius:var(--r);padding:18px;transition:all .2s;}
+.shop-card:hover{border-color:var(--saffron-lt);box-shadow:var(--shadow);}
+.shop-card-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;}
+.shop-icon{width:44px;height:44px;border-radius:10px;background:var(--warm);display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0;}
+.shop-name{font-weight:700;font-size:.95rem;}
+.shop-meta{font-size:.78rem;color:var(--muted);margin-top:2px;}
+.shop-url{font-size:.72rem;color:var(--saffron);margin-top:3px;word-break:break-all;}
+.shop-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
+.shops-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;}
+</style>
+</head>
+<body>
+<nav class="navbar">
+  <a class="brand" href="/admin">Shiva<span>@12</span></a>
+  <div class="nav-links">
+    <span style="color:#aaa;font-size:.82rem;margin-right:8px">⚙️ Super Admin</span>
+    <a href="/admin/logout" class="nav-a">Logout</a>
+  </div>
+</nav>
+<div class="subnav">
+  <a href="#shops"  class="subnav-a active" onclick="showTab('shops',this)">🏪 Shops</a>
+  <a href="#orders" class="subnav-a" onclick="showTab('orders',this)">📋 Today's Orders</a>
+  <a href="#owners" class="subnav-a" onclick="showTab('owners',this)">👤 Owners</a>
+</div>
+
+<div id="toast"></div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat,msg in messages %}
+  <div style="background:{{ '#e6f7ef' if cat=='success' else '#fdeaea' }};color:{{ '#1a8a5a' if cat=='success' else '#d63b3b' }};padding:12px 20px;font-size:.88rem;border-bottom:2px solid {{ '#1a8a5a44' if cat=='success' else '#d63b3b44' }}">
+    {{ msg }}
+  </div>
+  {% endfor %}
+{% endwith %}
+
+<div class="wrap">
+
+<!-- Platform stats -->
+<div class="grid-4 mb-24 mt-4">
+  <div class="stat dark"><div class="ico">🏪</div><div class="val">{{ shops | length }}</div><div class="lbl">Total Shops</div></div>
+  <div class="stat"><div class="ico">✅</div><div class="val" style="color:var(--green)">{{ shops | selectattr('is_active','equalto',1) | list | length }}</div><div class="lbl">Active Shops</div></div>
+  <div class="stat"><div class="ico">📦</div><div class="val">{{ orders | length }}</div><div class="lbl">Today's Orders</div></div>
+  <div class="stat"><div class="ico">💰</div><div class="val" style="color:var(--saffron)">₹{{ total_rev | int }}</div><div class="lbl">Today's Revenue</div></div>
+</div>
+
+<!-- ── SHOPS TAB ── -->
+<div id="tab-shops">
+  <div class="flex-b mb-16">
+    <div class="page-hdr" style="margin-bottom:0"><h1>🏪 All Shops</h1><p>Manage all shops on the platform</p></div>
+    <button class="btn btn-p" onclick="openModal('add-shop-modal')">+ Add Shop</button>
+  </div>
+
+  {% if shops %}
+  <div class="shops-grid">
+    {% for shop in shops %}
+    <div class="shop-card">
+      <div class="shop-card-top">
+        <div class="flex gap-12">
+          <div class="shop-icon">🏪</div>
+          <div>
+            <div class="shop-name">{{ shop.name }}</div>
+            <div class="shop-meta">Owner: {{ shop.owner_name }} (@{{ shop.username }})</div>
+            <div class="shop-url">/shop/{{ shop.slug }}</div>
+          </div>
+        </div>
+        <span class="badge badge-{{ 'active' if shop.is_active else 'inactive' }}">
+          {{ 'Active' if shop.is_active else 'Off' }}
+        </span>
+      </div>
+      {% if shop.description %}<div style="font-size:.8rem;color:var(--muted);margin-bottom:8px">{{ shop.description }}</div>{% endif %}
+
+      <!-- Credentials box — very visible for admin -->
+      <div style="background:var(--warm);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:.78rem;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+          <span style="color:var(--muted)">👤 Owner login</span>
+          <span><strong>{{ shop.username }}</strong> / <strong>{{ shop.kitchen_pin }}</strong> (kitchen PIN)</span>
+        </div>
+        <div style="color:var(--saffron);font-size:.72rem;word-break:break-all">
+          🛒 {{ base_url }}/shop/{{ shop.slug }}
+        </div>
+      </div>
+
+      <div class="shop-actions">
+        <button class="tog {{ 'on' if shop.is_active else 'off' }}" id="stog-{{ shop.id }}" onclick="toggleShop({{ shop.id }})"></button>
+        <a href="/admin/qr/{{ shop.slug }}" class="btn btn-sm btn-o" target="_blank">📱 QR</a>
+        <button class="btn btn-sm btn-o" onclick="openEditShop({{ shop.id }},'{{ shop.name | replace("'","") }}','{{ shop.description | replace("'","") }}','{{ shop.slug }}','{{ shop.kitchen_pin }}',{{ shop.is_active }},'{{ shop.username }}')">✏️ Edit</button>
+        <form method="POST" action="/admin/shop/delete/{{ shop.id }}" onsubmit="return confirm('Delete {{ shop.name }} and all its data?')" style="display:inline">
+          <button type="submit" class="btn btn-sm btn-r">🗑 Delete</button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state"><div class="ei">🏪</div><p>No shops yet. Add your first shop!</p></div>
+  {% endif %}
+</div>
+
+<!-- ── ORDERS TAB ── -->
+<div id="tab-orders" style="display:none">
+  <div class="page-hdr"><h1>📋 Today's Orders</h1><p>All orders across all shops</p></div>
+
+  {% if orders %}
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead>
+        <tr><th>Order</th><th>Shop</th><th>Customer</th><th>Items</th><th>Total</th><th>Payment</th><th>Status</th><th>Time</th></tr>
+      </thead>
+      <tbody>
+        {% for o in orders %}
+        <tr>
+          <td><strong>#{{ o.id }}</strong> <span style="color:var(--muted);font-size:.75rem">T#{{ o.token_number }}</span></td>
+          <td style="font-weight:500">{{ o.shop_name }}</td>
+          <td>{{ o.customer_name }}</td>
+          <td style="color:var(--muted);font-size:.8rem;max-width:200px">{{ o.items }}</td>
+          <td style="font-family:'Syne',sans-serif;font-weight:700;color:var(--saffron)">₹{{ o.total | int }}</td>
+          <td>
+            {% if o.payment == 'UPI' %}
+              <span style="background:#e6f7ef;color:#1a8a5a;font-size:.72rem;font-weight:700;padding:3px 8px;border-radius:8px">✅ UPI</span>
+            {% else %}
+              <span style="background:#fff0e5;color:#FF6B00;font-size:.72rem;font-weight:700;padding:3px 8px;border-radius:8px">💵 COD</span>
+            {% endif %}
+          </td>
+          <td><span class="badge badge-{{ o.status }}">{{ o.status }}</span></td>
+          <td style="color:var(--muted);font-size:.78rem">{{ o.created_at }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state"><div class="ei">📋</div><p>No orders today.</p></div>
+  {% endif %}
+</div>
+
+<!-- ── OWNERS TAB ── -->
+<div id="tab-owners" style="display:none">
+  <div class="page-hdr"><h1>👤 Shop Owners</h1><p>All registered owners</p></div>
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>#</th><th>Name</th><th>Username</th><th>Shop</th></tr></thead>
+      <tbody>
+        {% for o in owners %}
+        <tr>
+          <td style="color:var(--muted)">#{{ o.id }}</td>
+          <td style="font-weight:500">{{ o.name }}</td>
+          <td><code style="background:var(--warm);padding:2px 8px;border-radius:5px;font-size:.8rem">{{ o.username }}</code></td>
+          <td>
+            {% for s in shops if s.owner_id == o.id %}
+              <a href="/shop/{{ s.slug }}" style="color:var(--saffron);text-decoration:none;font-size:.85rem" target="_blank">{{ s.name }}</a>
+            {% endfor %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+</div><!-- /wrap -->
+
+<!-- ── ADD SHOP MODAL ── -->
+<div class="modal-overlay" id="add-shop-modal" onclick="closeModalOvl(event,'add-shop-modal')">
+  <div class="modal">
+    <div class="modal-title">➕ Add New Shop <button class="modal-close" onclick="closeModal('add-shop-modal')">✕</button></div>
+    <form method="POST" action="/admin/shop/add">
+      <div class="frow">
+        <div class="fgroup"><label class="flabel">Shop Name *</label>
+          <input class="finput" name="shop_name" placeholder="e.g. Ravi Tea Stall" required></div>
+        <div class="fgroup"><label class="flabel">URL Slug * (no spaces)</label>
+          <input class="finput" name="slug" placeholder="e.g. ravi-tea-stall" required oninput="this.value=this.value.toLowerCase().replace(/\s+/g,'-')"></div>
+      </div>
+      <div class="frow">
+        <div class="fgroup"><label class="flabel">Owner Name *</label>
+          <input class="finput" name="owner_name" placeholder="e.g. Ravi Kumar" required></div>
+        <div class="fgroup"><label class="flabel">Description</label>
+          <input class="finput" name="description" placeholder="Short description"></div>
+      </div>
+      <div class="frow">
+        <div class="fgroup"><label class="flabel">Owner Username *</label>
+          <input class="finput" name="username" placeholder="e.g. ravi" required></div>
+        <div class="fgroup"><label class="flabel">Owner Password *</label>
+          <input class="finput" name="password" placeholder="Set a password" required></div>
+      </div>
+      <div class="fgroup"><label class="flabel">Kitchen PIN (for kitchen staff)</label>
+        <input class="finput" name="kitchen_pin" placeholder="e.g. 5678" maxlength="8" value="1234"></div>
+      <button type="submit" class="btn btn-p btn-full">Create Shop</button>
+    </form>
+  </div>
+</div>
+
+<!-- ── EDIT SHOP MODAL ── -->
+<div class="modal-overlay" id="edit-shop-modal" onclick="closeModalOvl(event,'edit-shop-modal')">
+  <div class="modal">
+    <div class="modal-title">✏️ Edit Shop <button class="modal-close" onclick="closeModal('edit-shop-modal')">✕</button></div>
+    <form id="edit-shop-form" method="POST">
+      <div class="frow">
+        <div class="fgroup"><label class="flabel">Shop Name *</label>
+          <input class="finput" id="es-name" name="name" required></div>
+        <div class="fgroup"><label class="flabel">Description</label>
+          <input class="finput" id="es-desc" name="description"></div>
+      </div>
+      <div class="frow">
+        <div class="fgroup"><label class="flabel">Kitchen PIN</label>
+          <input class="finput" id="es-pin" name="kitchen_pin" maxlength="8"></div>
+        <div class="fgroup"><label class="flabel">Status</label>
+          <select class="fselect" id="es-active" name="is_active">
+            <option value="1">Active</option>
+            <option value="0">Inactive</option>
+          </select></div>
+      </div>
+      <hr class="divider">
+      <p style="font-size:.8rem;color:var(--muted);margin-bottom:12px">Leave blank to keep existing owner credentials</p>
+      <div class="frow">
+        <div class="fgroup"><label class="flabel">New Owner Username</label>
+          <input class="finput" id="es-uname" name="owner_username" placeholder="Leave blank to keep"></div>
+        <div class="fgroup"><label class="flabel">New Owner Password</label>
+          <input class="finput" id="es-pass" name="owner_password" placeholder="Leave blank to keep"></div>
+      </div>
+      <button type="submit" class="btn btn-p btn-full">Save Changes</button>
+    </form>
+  </div>
+</div>
+
+<script>
+function showTab(tab, el) {
+  ['shops','orders','owners'].forEach(t=>{
+    document.getElementById(`tab-${t}`).style.display = t===tab?'':'none';
+  });
+  document.querySelectorAll('.subnav-a').forEach(a=>a.classList.remove('active'));
+  if(el) el.classList.add('active');
+}
+
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function closeModalOvl(e,id) { if(e.target===document.getElementById(id)) closeModal(id); }
+
+function openEditShop(id, name, desc, slug, pin, active, uname) {
+  document.getElementById('edit-shop-form').action = `/admin/shop/edit/${id}`;
+  document.getElementById('es-name').value   = name;
+  document.getElementById('es-desc').value   = desc;
+  document.getElementById('es-pin').value    = pin;
+  document.getElementById('es-active').value = active;
+  document.getElementById('es-uname').value  = '';
+  document.getElementById('es-pass').value   = '';
+  openModal('edit-shop-modal');
+}
+
+async function toggleShop(id) {
+  const res  = await fetch(`/admin/shop/toggle/${id}`, {method:'POST'});
+  const data = await res.json();
+  if (data.success) {
+    const btn = document.getElementById(`stog-${id}`);
+    btn.className = `tog ${data.is_active ? 'on' : 'off'}`;
+    toast(data.is_active ? '✅ Shop activated' : '⛔ Shop deactivated');
+    setTimeout(()=>location.reload(), 800);
+  }
+}
+
+function toast(msg) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>{{ shop.name }} — Order</title>
+<link rel="stylesheet" href="/static/style.css">
+<style>
+.wrap-sm{padding-bottom:100px;}
+.search-wrap{padding:14px 0 0;}
+.search-box{position:relative;}
+.search-box input{width:100%;padding:10px 14px 10px 40px;border:2px solid var(--border);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:.9rem;outline:none;transition:border-color .2s;}
+.search-box input:focus{border-color:var(--saffron);}
+.search-icon{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--muted);}
+.cat-bar{display:flex;gap:8px;padding:12px 0;overflow-x:auto;scrollbar-width:none;}
+.cat-bar::-webkit-scrollbar{display:none;}
+.cat-pill{flex-shrink:0;padding:6px 14px;border-radius:20px;font-size:.8rem;font-weight:500;border:2px solid var(--border);cursor:pointer;background:white;transition:all .2s;white-space:nowrap;}
+.cat-pill.active{background:var(--saffron);border-color:var(--saffron);color:white;}
+.sec-lbl{font-family:'Syne',sans-serif;font-size:.72rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin:12px 0 8px;}
+.menu-list{display:flex;flex-direction:column;gap:10px;}
+.menu-item{background:white;border:2px solid var(--border);border-radius:var(--r);padding:14px;display:flex;align-items:center;gap:14px;transition:all .2s;}
+.menu-item:hover{border-color:var(--saffron-lt);box-shadow:var(--shadow);}
+.mi-img{width:64px;height:64px;border-radius:12px;background:var(--warm);display:flex;align-items:center;justify-content:center;font-size:1.8rem;flex-shrink:0;overflow:hidden;}
+.mi-img img{width:64px;height:64px;object-fit:cover;}
+.mi-info{flex:1;}
+.mi-name{font-weight:600;font-size:.95rem;margin-bottom:3px;}
+.mi-desc{font-size:.78rem;color:var(--muted);margin-bottom:5px;}
+.mi-price{font-family:'Syne',sans-serif;font-weight:700;font-size:.95rem;color:var(--saffron);}
+.qty-ctrl{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.qbtn{width:30px;height:30px;border-radius:8px;border:none;cursor:pointer;font-size:1.1rem;font-weight:700;display:flex;align-items:center;justify-content:center;}
+.qbtn.m{background:var(--warm);}.qbtn.p{background:var(--saffron);color:white;}
+.qadd{background:var(--saffron);color:white;border:none;padding:6px 14px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:.8rem;font-weight:600;cursor:pointer;}
+.qnum{font-weight:700;font-size:1rem;min-width:20px;text-align:center;}
+.cart-bar{position:fixed;bottom:0;left:0;right:0;background:var(--ink);color:white;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);z-index:50;border-radius:16px 16px 0 0;}
+.cart-bar.show{transform:translateY(0);}
+.cb-bubble{background:var(--saffron);width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.9rem;}
+.cb-lbl{font-size:.82rem;}.cb-lbl strong{display:block;font-size:1rem;}
+.sheet-overlay{position:fixed;inset:0;background:rgba(26,18,8,.6);z-index:200;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .3s;}
+.sheet-overlay.open{opacity:1;pointer-events:all;}
+.sheet{background:white;border-radius:20px 20px 0 0;width:100%;max-width:480px;max-height:92vh;overflow-y:auto;padding:20px 20px 36px;transform:translateY(100%);transition:transform .35s cubic-bezier(.4,0,.2,1);}
+.sheet-overlay.open .sheet{transform:translateY(0);}
+.drag-bar{width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 18px;}
+.cm-item{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);}
+.cm-name{font-weight:500;font-size:.9rem;}
+.cm-qty{color:var(--muted);font-size:.76rem;margin-top:2px;}
+.cm-sub{font-family:'Syne',sans-serif;font-weight:700;color:var(--saffron);}
+.cm-total-row{display:flex;justify-content:space-between;padding:12px 0 0;border-top:2px solid var(--ink);margin-top:4px;font-family:'Syne',sans-serif;font-weight:800;font-size:1.05rem;}
+.pay-title{font-family:'Syne',sans-serif;font-weight:700;font-size:.88rem;margin:18px 0 10px;}
+.pay-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
+.pay-opt{border:2.5px solid var(--border);border-radius:14px;padding:14px 10px 12px;cursor:pointer;text-align:center;transition:all .2s;position:relative;background:white;user-select:none;}
+.pay-opt.active{border-color:var(--saffron);background:var(--saffron-pale);}
+.pay-opt .po-icon{font-size:2rem;display:block;margin-bottom:6px;}
+.pay-opt .po-lbl{font-weight:700;font-size:.88rem;}
+.pay-opt .po-sub{font-size:.7rem;color:var(--muted);margin-top:3px;}
+.pay-opt .po-tick{position:absolute;top:8px;right:8px;width:20px;height:20px;border-radius:50%;background:var(--saffron);display:none;align-items:center;justify-content:center;color:white;font-size:.7rem;font-weight:800;}
+.pay-opt.active .po-tick{display:flex;}
+/* UPI screen */
+.upi-card{background:linear-gradient(135deg,#4a00e0,#8e2de2);border-radius:16px;padding:20px;color:white;text-align:center;margin-bottom:14px;}
+.upi-card .uc-label{font-size:.68rem;opacity:.7;text-transform:uppercase;letter-spacing:1.5px;}
+.upi-card .uc-amount{font-family:'Syne',sans-serif;font-weight:800;font-size:2.6rem;margin:6px 0 8px;}
+.upi-card .uc-upiid{font-family:'Syne',sans-serif;font-weight:700;font-size:.95rem;background:rgba(255,255,255,.2);border-radius:20px;padding:5px 16px;display:inline-block;cursor:pointer;}
+/* Big orange open UPI button */
+.btn-open-upi{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:16px;border-radius:14px;background:linear-gradient(135deg,#FF6B00,#ff9500);color:white;font-family:'Syne',sans-serif;font-weight:800;font-size:1.05rem;border:none;cursor:pointer;box-shadow:0 6px 20px rgba(255,107,0,.35);margin-bottom:14px;}
+.btn-open-upi:active{transform:scale(.98);}
+/* Info steps */
+.how-steps{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;}
+.how-step{display:flex;gap:10px;align-items:flex-start;background:var(--warm);border-radius:10px;padding:10px 12px;}
+.hs-num{width:22px;height:22px;border-radius:50%;background:var(--saffron);color:white;font-size:.72rem;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
+.hs-txt{font-size:.8rem;line-height:1.5;}
+/* COD */
+.cod-card{background:linear-gradient(135deg,#1A1208,#3d2810);border-radius:16px;padding:22px;color:white;text-align:center;margin-bottom:14px;}
+.cod-icon{font-size:3rem;margin-bottom:8px;}
+.cod-amt{font-family:'Syne',sans-serif;font-weight:800;font-size:2.4rem;color:var(--saffron);margin-bottom:6px;}
+.cod-card p{font-size:.82rem;opacity:.7;line-height:1.5;}
+.summary-box{background:var(--warm);border-radius:10px;padding:14px;margin-bottom:16px;}
+.sum-row{display:flex;justify-content:space-between;font-size:.84rem;padding:5px 0;border-bottom:1px solid var(--border);}
+.sum-row.total-row{font-family:'Syne',sans-serif;font-weight:800;border:none;padding-top:10px;}
+/* Done */
+.done-wrap{text-align:center;padding:24px 0 8px;}
+.done-emoji{font-size:4rem;margin-bottom:12px;display:block;animation:pop .5s cubic-bezier(.68,-.55,.27,1.55);}
+@keyframes pop{0%{transform:scale(0)}60%{transform:scale(1.2)}100%{transform:scale(1)}}
+.done-title{font-family:'Syne',sans-serif;font-weight:800;font-size:1.4rem;margin-bottom:8px;}
+.done-badge{display:inline-block;padding:5px 16px;border-radius:20px;font-size:.8rem;font-weight:700;margin-bottom:20px;}
+.token-box{background:var(--saffron-pale);border:2.5px solid var(--saffron);border-radius:16px;padding:16px 36px;display:inline-block;}
+.token-lbl{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:4px;}
+.token-num{font-family:'Syne',sans-serif;font-weight:800;font-size:3rem;color:var(--saffron);line-height:1;}
+.redir-txt{font-size:.8rem;color:var(--muted);margin-top:14px;}
+.back-link{width:100%;padding:9px;border:none;background:none;color:var(--muted);font-size:.82rem;cursor:pointer;font-family:'DM Sans',sans-serif;}
+</style>
+</head>
+<body>
+<nav class="navbar">
+  <a class="brand" href="#">Shiva<span>@12</span></a>
+  <span style="color:#aaa;font-size:.82rem">🍵 {{ shop.name }}</span>
+</nav>
+<div id="toast"></div>
+<div class="hero">
+  <div class="hero-tag">📍 {{ shop.name }}</div>
+  <h1>{{ shop.name }}</h1>
+  <p>{{ shop.description }}</p>
+  <div class="flex gap-16 mt-12">
+    <span style="color:#ccc;font-size:.8rem">⭐ Open Now</span>
+    <span style="color:#ccc;font-size:.8rem">🛒 Digital Order</span>
+  </div>
+</div>
+
+<div class="wrap-sm">
+  <div class="search-wrap">
+    <div class="search-box">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="srch" placeholder="Search menu…" oninput="doSearch()">
+    </div>
+  </div>
+  <div class="cat-bar">
+    <div class="cat-pill active" onclick="filterCat(this,'All')">All</div>
+    {% set cats = items | map(attribute='category') | unique | list %}
+    {% for cat in cats %}
+    <div class="cat-pill" onclick="filterCat(this,'{{ cat }}')">{{ cat }}</div>
+    {% endfor %}
+  </div>
+  <div class="sec-lbl">Menu</div>
+  <div class="menu-list" id="menu-list">
+    {% for item in items %}
+    <div class="menu-item" id="row-{{ item.id }}"
+         data-cat="{{ item.category }}" data-name="{{ item.name|lower }}" data-price="{{ item.price }}">
+      <div class="mi-img">
+        {% if item.image %}<img src="/static/uploads/{{ item.image }}" alt="{{ item.name }}">
+        {% else %}
+          {% if item.category=='Drinks' %}☕{% elif item.category=='Snacks' %}🥪
+          {% elif item.category=='Meals' %}🍱{% elif item.category=='Sweets' %}🍮
+          {% else %}🍽️{% endif %}
+        {% endif %}
+      </div>
+      <div class="mi-info">
+        <div class="mi-name">{{ item.name }}</div>
+        {% if item.description %}<div class="mi-desc">{{ item.description }}</div>{% endif %}
+        <div class="mi-price">₹{{ item.price|int }}</div>
+      </div>
+      <div class="qty-ctrl" id="ctrl-{{ item.id }}">
+        <button class="qadd" onclick="addItem({{ item.id }},'{{ item.name|replace("'","") }}',{{ item.price }})">+ Add</button>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="cart-bar" id="cart-bar">
+  <div class="flex gap-12">
+    <div class="cb-bubble" id="cb-cnt">0</div>
+    <div class="cb-lbl"><strong id="cb-price">₹0</strong>in cart</div>
+  </div>
+  <button class="btn btn-p" onclick="openSheet()">View Cart →</button>
+</div>
+
+<!-- ══════ CHECKOUT SHEET ══════ -->
+<div class="sheet-overlay" id="sheet" onclick="bgClose(event)">
+  <div class="sheet">
+    <div class="drag-bar"></div>
+
+    <!-- SCREEN 1: Cart + payment -->
+    <div id="scr-cart">
+      <div class="modal-title">🛒 Your Cart <button class="modal-close" onclick="closeSheet()">✕</button></div>
+      <div id="cart-rows"></div>
+      <div class="cm-total-row"><span>Total</span><span id="cart-total">₹0</span></div>
+      <div class="fgroup mt-16">
+        <label class="flabel">Your Name *</label>
+        <input class="finput" id="cname" placeholder="e.g. Ravi Kumar">
+      </div>
+      <div class="fgroup">
+        <label class="flabel">Phone (optional)</label>
+        <input class="finput" id="cphone" type="tel" maxlength="10" placeholder="10-digit number">
+      </div>
+      <div class="pay-title">💳 How do you want to pay?</div>
+      <div class="pay-grid">
+        <div class="pay-opt" id="opt-upi" onclick="pickPay('upi')">
+          <div class="po-tick">✓</div>
+          <span class="po-icon">📱</span>
+          <div class="po-lbl">Pay via UPI</div>
+          <div class="po-sub">GPay · PhonePe · Paytm</div>
+        </div>
+        <div class="pay-opt" id="opt-cod" onclick="pickPay('cod')">
+          <div class="po-tick">✓</div>
+          <span class="po-icon">💵</span>
+          <div class="po-lbl">Cash</div>
+          <div class="po-sub">Pay at counter</div>
+        </div>
+      </div>
+      <button class="btn btn-p btn-full" style="padding:13px" onclick="goNext()">Continue →</button>
+    </div>
+
+    <!-- SCREEN 2: UPI -->
+    <div id="scr-upi" style="display:none">
+      <div class="modal-title">📱 Pay via UPI <button class="modal-close" onclick="closeSheet()">✕</button></div>
+
+      <div class="upi-card">
+        <div class="uc-label">Amount to Pay</div>
+        <div class="uc-amount" id="upi-amt">₹0</div>
+        <div class="uc-label" style="margin-bottom:6px">UPI ID (tap to copy)</div>
+        <div class="uc-upiid" onclick="copyUpi()">9390175871@fam 📋</div>
+      </div>
+
+      <div class="how-steps">
+        <div class="how-step">
+          <div class="hs-num">1</div>
+          <div class="hs-txt">Tap <strong>"Open UPI App"</strong> below — your phone shows GPay / PhonePe / Paytm</div>
+        </div>
+        <div class="how-step">
+          <div class="hs-num">2</div>
+          <div class="hs-txt">Complete the payment — amount and UPI ID are already filled in</div>
+        </div>
+        <div class="how-step">
+          <div class="hs-num">3</div>
+          <div class="hs-txt">Come back and tap <strong>"I've Paid"</strong> — owner will confirm and start your order</div>
+        </div>
+      </div>
+
+      <!-- Opens universal UPI intent — Android shows app chooser -->
+      <button class="btn-open-upi" id="btn-open-upi" onclick="openUpi()">
+        📲 Open UPI App &amp; Pay <span id="upi-amt-btn">₹0</span>
+      </button>
+
+      <!--
+        NOTE: "I've Paid" saves order as status = "pending_payment"
+        The owner sees it on their dashboard and manually taps
+        "Mark Paid" after checking their phone/GPay/PhonePe.
+        Only then does the order go to "received" and kitchen starts it.
+        This prevents fake confirmations completely.
+      -->
+      <button class="btn btn-s btn-full" id="btn-ipaid" onclick="iHavePaid()" style="padding:13px;margin-bottom:8px" disabled>
+        ✅ I've Paid — Confirm Order
+      </button>
+      <p id="ipaid-hint" style="text-align:center;font-size:.75rem;color:var(--muted);margin:0 0 8px">
+        Tap "Open UPI App" first, then pay, then tap above
+      </p>
+
+      <!-- Honor-based warning -->
+      <div style="background:#f0f4ff;border:1.5px solid #93c5fd;border-radius:12px;padding:12px 14px;margin-bottom:10px;font-size:.78rem;color:#1e3a8a;line-height:1.6">
+        <strong>ℹ️ How this works</strong><br>
+        This is an <strong>honor-based payment</strong>. Your money goes directly to the shop's UPI account. The shop owner will verify and confirm your order.<br><br>
+        <strong>⚠️ Important:</strong> Always pay the <strong>exact amount shown</strong> and note your <strong>UPI transaction ID</strong> as proof of payment. If your order is incorrectly rejected after genuine payment, show your UPI transaction screenshot to the shop owner or contact:<br>
+        <span style="font-weight:700;color:#1d4ed8">📞 9390175871</span>
+      </div>
+
+      <button class="back-link" onclick="show('scr-cart')">← Back</button>
+    </div>
+
+    <!-- SCREEN 3: COD -->
+    <div id="scr-cod" style="display:none">
+      <div class="modal-title">💵 Cash on Delivery <button class="modal-close" onclick="closeSheet()">✕</button></div>
+      <div class="cod-card">
+        <div class="cod-icon">💵</div>
+        <div class="cod-amt" id="cod-amt">₹0</div>
+        <p>Keep this cash ready.<br>Pay at the counter when your order is ready.</p>
+      </div>
+      <div class="summary-box"><div id="cod-rows"></div></div>
+      <button class="btn btn-p btn-full" style="padding:13px" onclick="placeCOD()">✅ Place Order — Pay at Counter</button>
+      <button class="back-link" onclick="show('scr-cart')">← Back</button>
+    </div>
+
+    <!-- SCREEN 4: Done -->
+    <div id="scr-done" style="display:none">
+      <div class="done-wrap">
+        <span class="done-emoji" id="done-emoji">🎉</span>
+        <div class="done-title" id="done-title">Order Placed!</div>
+        <div class="done-badge" id="done-badge"></div>
+        <br>
+        <div class="token-box">
+          <div class="token-lbl">Your Token</div>
+          <div class="token-num" id="done-token">#0</div>
+        </div>
+        <div class="redir-txt">Taking you to order tracker in <strong id="secs">3</strong>s…</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const SHOP_ID  = {{ shop.id }};
+const UPI_ID   = '9390175871@fam';
+const UPI_NAME = encodeURIComponent('{{ shop.name }}');
+
+let cart      = {};
+let payMethod = null;
+let ORDER_ID  = null;
+let ORDER_TOK = null;
+let upiOpened = false;  // tracks if user actually tapped "Open UPI App"
+
+/* ── Cart ─────────────────────────────────────────────── */
+function addItem(id, name, price) {
+  if (!cart[id]) cart[id] = {name, price: parseFloat(price), qty: 0};
+  cart[id].qty++;
+  drawBtn(id); updateBar();
+}
+function removeItem(id) {
+  if (!cart[id]) return;
+  cart[id].qty--;
+  if (cart[id].qty <= 0) delete cart[id];
+  drawBtn(id); updateBar();
+}
+function drawBtn(id) {
+  const wrap = document.getElementById('ctrl-' + id);
+  const row  = document.getElementById('row-' + id);
+  const name = row.querySelector('.mi-name').textContent.trim().replace(/'/g,"\\'");
+  const price= row.dataset.price;
+  const qty  = cart[id] ? cart[id].qty : 0;
+  if (qty === 0) {
+    wrap.innerHTML = `<button class="qadd" onclick="addItem(${id},'${name}',${price})">+ Add</button>`;
+  } else {
+    wrap.innerHTML =
+      `<button class="qbtn m" onclick="removeItem(${id})">−</button>`+
+      `<span class="qnum">${qty}</span>`+
+      `<button class="qbtn p" onclick="addItem(${id},'${name}',${price})">+</button>`;
+  }
+}
+function getTotal() { return Object.values(cart).reduce((s,v)=>s+v.price*v.qty,0); }
+function updateBar() {
+  const cnt = Object.values(cart).reduce((s,v)=>s+v.qty,0);
+  document.getElementById('cb-cnt').textContent   = cnt;
+  document.getElementById('cb-price').textContent = '₹'+getTotal();
+  document.getElementById('cart-bar').classList.toggle('show', cnt>0);
+}
+
+/* ── Sheet ────────────────────────────────────────────── */
+function openSheet() { buildCartRows(); show('scr-cart'); document.getElementById('sheet').classList.add('open'); }
+function closeSheet() { document.getElementById('sheet').classList.remove('open'); }
+function bgClose(e) { if (e.target===document.getElementById('sheet')) closeSheet(); }
+function show(id) {
+  ['scr-cart','scr-upi','scr-cod','scr-done'].forEach(s=>
+    document.getElementById(s).style.display = s===id?'':'none'
+  );
+}
+function buildCartRows() {
+  const el = document.getElementById('cart-rows');
+  if (!Object.keys(cart).length) {
+    el.innerHTML='<p style="text-align:center;color:var(--muted);padding:12px 0">Cart is empty</p>';
+    document.getElementById('cart-total').textContent='₹0'; return;
+  }
+  el.innerHTML = Object.entries(cart).map(([id,it])=>
+    `<div class="cm-item">
+      <div><div class="cm-name">${it.name}</div><div class="cm-qty">×${it.qty} @ ₹${it.price}</div></div>
+      <div class="cm-sub">₹${it.price*it.qty}</div>
+    </div>`
+  ).join('');
+  document.getElementById('cart-total').textContent = '₹'+getTotal();
+}
+
+/* ── Payment pick ─────────────────────────────────────── */
+function pickPay(m) {
+  payMethod = m;
+  document.getElementById('opt-upi').classList.toggle('active', m==='upi');
+  document.getElementById('opt-cod').classList.toggle('active', m==='cod');
+}
+
+function goNext() {
+  if (!document.getElementById('cname').value.trim()) { toast('Please enter your name'); return; }
+  if (!Object.keys(cart).length)  { toast('Cart is empty'); return; }
+  if (!payMethod) { toast('Please select a payment method'); return; }
+  const amt = getTotal();
+  if (payMethod === 'upi') {
+    document.getElementById('upi-amt').textContent    = '₹'+amt;
+    document.getElementById('upi-amt-btn').textContent= '₹'+amt;
+    // Reset state
+    upiOpened = false;
+    const ipaid = document.getElementById('btn-ipaid');
+    ipaid.disabled = true;
+    ipaid.style.opacity = '0.5';
+    document.getElementById('ipaid-hint').style.display = '';
+    show('scr-upi');
+  } else {
+    document.getElementById('cod-amt').textContent = '₹'+amt;
+    const rows = Object.entries(cart).map(([id,it])=>
+      `<div class="sum-row"><span>${it.name} ×${it.qty}</span><span>₹${it.price*it.qty}</span></div>`
+    ).join('');
+    document.getElementById('cod-rows').innerHTML =
+      rows+`<div class="sum-row total-row"><span>Total</span><span style="color:var(--saffron)">₹${getTotal()}</span></div>`;
+    show('scr-cod');
+  }
+}
+
+/* ── Open UPI app (universal intent — shows app chooser on phone) ── */
+function openUpi() {
+  const amt  = getTotal();
+  const note = encodeURIComponent('Order at Shiva@12');
+  // upi://pay is the universal Android UPI standard.
+  // The OS shows all installed UPI apps (GPay, PhonePe, Paytm, BHIM).
+  // Amount and UPI ID are pre-filled — exactly like scanning a merchant QR.
+  const url  = `upi://pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${amt}&cu=INR&tn=${note}`;
+  window.location.href = url;
+
+  // Mark that user opened the UPI app
+  upiOpened = true;
+
+  // Enable "I've Paid" button after 3 seconds
+  // (enough time for UPI app to open)
+  setTimeout(() => {
+    const ipaid = document.getElementById('btn-ipaid');
+    ipaid.disabled = false;
+    ipaid.style.opacity = '1';
+    document.getElementById('ipaid-hint').style.display = 'none';
+  }, 3000);
+}
+
+function copyUpi() {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(UPI_ID).then(()=>toast('✅ Copied: '+UPI_ID));
+  } else {
+    const ta = document.createElement('textarea');
+    ta.value = UPI_ID; document.body.appendChild(ta);
+    ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+    toast('✅ Copied: '+UPI_ID);
+  }
+}
+
+/* ── "I've Paid" ─────────────────────────────────────────
+   Saves order with status = "pending_payment"
+   Owner sees it on dashboard and manually taps "Mark Paid"
+   after checking their GPay/PhonePe notification.
+   Only then does kitchen receive the order.
+   This is 100% fraud-proof for an MVP with no payment gateway.
+   ────────────────────────────────────────────────────── */
+async function iHavePaid() {
+  const btn = document.getElementById('btn-ipaid');
+  if (btn.disabled) return;
+  btn.textContent = '⏳ Saving order…';
+  btn.disabled = true;
+
+  const name  = document.getElementById('cname').value.trim();
+  const phone = document.getElementById('cphone').value.trim();
+  const items = Object.entries(cart).map(([id,it])=>({item_id:+id,name:it.name,price:it.price,qty:it.qty}));
+
+  try {
+    const res  = await fetch('/api/place_order', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        shop_id: SHOP_ID, items,
+        customer_name: name, phone,
+        total: getTotal(),
+        payment: 'UPI',
+        status: 'pending_payment'   // ← waits for owner to confirm
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      ORDER_ID=data.order_id; ORDER_TOK=data.token;
+      cart={}; updateBar();
+      showDone('upi', ORDER_TOK);
+    } else {
+      toast('Something went wrong. Try again.');
+      btn.textContent = '✅ I\'ve Paid — Confirm Order';
+      btn.disabled = false;
+    }
+  } catch(err) {
+    toast('Network error. Try again.');
+    btn.textContent = '✅ I\'ve Paid — Confirm Order';
+    btn.disabled = false;
+  }
+}
+
+/* ── COD ──────────────────────────────────────────────── */
+async function placeCOD() {
+  const name  = document.getElementById('cname').value.trim();
+  const phone = document.getElementById('cphone').value.trim();
+  const items = Object.entries(cart).map(([id,it])=>({item_id:+id,name:it.name,price:it.price,qty:it.qty}));
+  try {
+    const res  = await fetch('/api/place_order',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({shop_id:SHOP_ID,items,customer_name:name,phone,total:getTotal(),payment:'COD'})
+    });
+    const data = await res.json();
+    if (data.success) {
+      ORDER_ID=data.order_id; ORDER_TOK=data.token;
+      cart={}; updateBar(); showDone('cod', ORDER_TOK);
+    } else { toast('Something went wrong. Try again.'); }
+  } catch(err) { toast('Network error. Try again.'); }
+}
+
+/* ── Done screen ──────────────────────────────────────── */
+function showDone(method, tok) {
+  document.getElementById('done-token').textContent = '#'+tok;
+  const badge = document.getElementById('done-badge');
+  if (method === 'upi') {
+    document.getElementById('done-emoji').textContent = '⏳';
+    document.getElementById('done-title').textContent = 'Order Submitted!';
+    badge.textContent  = '⏳ Waiting for payment confirmation';
+    badge.style.cssText = 'background:#fff8e1;color:#92400e;border:1.5px solid #f59e0b55';
+  } else {
+    document.getElementById('done-emoji').textContent = '✅';
+    document.getElementById('done-title').textContent = 'Order Placed!';
+    badge.textContent  = '💵 Cash on Delivery';
+    badge.style.cssText = 'background:#fff0e5;color:#FF6B00;border:1.5px solid #FF6B0055';
+  }
+  show('scr-done');
+  let s=3;
+  document.getElementById('secs').textContent=s;
+  const iv=setInterval(()=>{
+    s--; const el=document.getElementById('secs');
+    if(el) el.textContent=s;
+    if(s<=0){clearInterval(iv); window.location.href='/order/'+ORDER_ID;}
+  },1000);
+}
+
+/* ── Search & filter ──────────────────────────────────── */
+function filterCat(el,cat) {
+  document.querySelectorAll('.cat-pill').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.menu-item').forEach(i=>
+    i.style.display=(cat==='All'||i.dataset.cat===cat)?'':'none'
+  );
+}
+function doSearch() {
+  const q=document.getElementById('srch').value.toLowerCase();
+  document.querySelectorAll('.menu-item').forEach(i=>
+    i.style.display=i.dataset.name.includes(q)?'':'none'
+  );
+}
+function toast(msg) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2800);
+}
+</script>
+</body>
+</html>
